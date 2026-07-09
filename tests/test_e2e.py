@@ -1,43 +1,22 @@
-import time
+import pytest
 
 
-def test_full_video_lifecycle(client, token):
+@pytest.mark.contract
+def test_full_video_lifecycle(client):
+    token = client.authenticate()
 
-    # Create
-    create_response = client.create_video(token)
-
-    assert create_response.status_code == 201
-
+    create_response = client.create_video(token=token)
+    assert create_response.status_code == 201, create_response.text
     video_id = create_response.json()["id"]
 
-    # Trigger processing
-    process_response = client.process_video(
-        token,
-        video_id
-    )
+    process_response = client.process_video(video_id, token=token)
+    assert process_response.status_code == 202, process_response.text
 
-    assert process_response.status_code == 202
+    get_response = client.get_video(video_id, token=token)
+    assert get_response.status_code == 200, get_response.text
 
-    # Verify video exists
-    get_response = client.get_video(
-        token,
-        video_id
-    )
+    delete_response = client.delete_video(video_id, token=token)
+    assert delete_response.status_code == 204, delete_response.text
 
-    assert get_response.status_code == 200
-
-    # Delete video
-    delete_response = client.delete_video(
-        token,
-        video_id
-    )
-
-    assert delete_response.status_code == 204
-
-    # Verify deletion
-    verify_response = client.get_video(
-        token,
-        video_id
-    )
-
-    assert verify_response.status_code == 404
+    verify_response = client.get_video(video_id, token=token)
+    assert verify_response.status_code == 404, verify_response.text

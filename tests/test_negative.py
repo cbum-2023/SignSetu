@@ -1,82 +1,42 @@
-import requests
-
-BASE_URL = "https://qa-testing-navy.vercel.app"
-
-
-def test_missing_candidate_header():
-
-    response = requests.post(
-        f"{BASE_URL}/api/auth"
-    )
-
-    print(response.status_code)
-    print(response.text)
-
-    assert response.status_code in [400, 401]
-
 import time
 
+import pytest
+import requests
 
-def test_token_expiry_behavior(client, token):
 
-    create = client.create_video(token)
+@pytest.mark.negative
+def test_missing_candidate_header_returns_client_error(base_url):
+    response = requests.post(f"{base_url}/api/auth", timeout=10)
 
+    assert response.status_code in {400, 401}, response.text
+
+
+@pytest.mark.negative
+@pytest.mark.slow
+def test_expired_token_is_rejected(client, token):
+    create = client.create_video(token=token)
+    assert create.status_code == 201, create.text
     video_id = create.json()["id"]
 
     time.sleep(6)
 
     response = client.get_video(
-        token,
-        video_id
+        video_id,
+        token=token,
     )
 
-    print(response.status_code)
-    print(response.text)
-
-    assert response.status_code == 401
+    assert response.status_code == 401, response.text
 
 
-def test_invalid_video_id(client, token):
+@pytest.mark.negative
+def test_invalid_video_id_returns_not_found_or_bad_request(client, token):
+    response = client.get_video("invalid-video-id", token=token)
 
-    response = client.get_video(
-        token,
-        "invalid-video-id"
-    )
+    assert response.status_code in {400, 404}, response.text
 
-    print(response.status_code)
-    print(response.text)
 
-    assert response.status_code in [400, 404]
-    
-    def test_process_nonexistent_video(client, token):
-    
-        response = client.process_video(
-            token,
-            "fake-video-id"
-        )
+@pytest.mark.negative
+def test_process_nonexistent_video_returns_not_found(client, token):
+    response = client.process_video("fake-video-id", token=token)
 
-        print(response.status_code)
-        print(response.text)
-
-        assert response.status_code in [400, 404]
-        
-        def test_delete_video_twice(client, token):
-    
-                video = client.create_video(token)
-
-                video_id = video.json()["id"]
-
-                first = client.delete_video(
-                    token,
-                    video_id
-                )
-
-                second = client.delete_video(
-                    token,
-                    video_id
-                )
-
-                print(first.status_code)
-                print(second.status_code)
-
-                assert second.status_code == 404
+    assert response.status_code in {400, 404}, response.text

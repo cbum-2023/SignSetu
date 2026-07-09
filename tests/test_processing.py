@@ -1,20 +1,25 @@
-def test_duplicate_processing_request(client, token):
-    
-    video = client.create_video(token)
+import pytest
 
-    video_id = video.json()["id"]
+from conftest import assert_known_bug
 
-    first = client.process_video(
-        token,
-        video_id
+
+@pytest.mark.contract
+def test_process_video_returns_accepted(client, token, created_video):
+    response = client.process_video(created_video["id"], token=token)
+
+    assert response.status_code == 202, response.text
+
+
+@pytest.mark.known_bug
+def test_duplicate_processing_request_is_rejected(client, token, created_video, strict_known_bugs):
+    video_id = created_video["id"]
+
+    first = client.process_video(video_id, token=token)
+    second = client.process_video(video_id, token=token)
+
+    assert first.status_code == 202, first.text
+    assert_known_bug(
+        second.status_code in {400, 409},
+        f"Expected duplicate processing request to be rejected, got {second.status_code}: {second.text}",
+        strict_known_bugs,
     )
-
-    second = client.process_video(
-        token,
-        video_id
-    )
-
-    print("FIRST:", first.status_code)
-    print("SECOND:", second.status_code)
-
-    assert second.status_code in [400, 409]

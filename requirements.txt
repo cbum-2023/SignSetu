@@ -1,2 +1,2 @@
-pytest
-requests
+pytest>=8.0,<9.0
+requests>=2.31,<3.0
